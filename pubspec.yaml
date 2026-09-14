@@ -1,0 +1,42 @@
+name: fashionstore
+
+description: "FashionStore mobile application."
+
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+  shared_preferences: ^2.5.5
+  google_sign_in: ^7.2.0
+  flutter_dotenv: ^6.0.1
+  flutter_riverpod: ^2.6.1
+  http: ^1.6.0
+  flutter_secure_storage: 9.2.4
+  device_info_plus: ^12.4.0
+  uuid: ^4.6.0
+  camera: ^0.12.0+2
+  google_mlkit_pose_detection: ^0.16.1
+  google_mlkit_commons: ^0.13.0
+  hand_landmarker: ^3.0.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - .env
+    - assets/images/
+    - assets/icons/
