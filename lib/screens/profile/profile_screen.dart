@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/constants/app_colors.dart';
 import '../../services/auth_service.dart';
 import '../auth/login_screen.dart';
+import 'purchase_history_screen.dart';
 
 
 class ProfileScreen extends StatefulWidget {
@@ -475,6 +476,18 @@ class _ProfileScreenState
                             );
                           },
                         ),
+                        _accountTile(                                    // 👈 nuevo
+                          icon: Icons.receipt_long_outlined,
+                          title: 'Mis compras',
+                          subtitle: 'Historial y estado de tus compras digitales',
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => const PurchaseHistoryScreen()),
+                            );
+                          },
+                        ),
+
 
 
                         _accountTile(
