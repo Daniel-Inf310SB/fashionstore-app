@@ -4,11 +4,13 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
 import 'api_service.dart';
+import 'selected_branch_service.dart';
 
 
 class AuthService {
@@ -29,6 +31,11 @@ class AuthService {
 
   static const String _userPermissionsKey =
       'user_permissions';
+
+  static const String _tenantIdKey = 'auth_tenant_id';
+  static const String _tenantSlugKey = 'auth_tenant_slug';
+  static const String _tenantNameKey = 'auth_tenant_name';
+  static const String _userIdKey = 'auth_user_id';
 
   static const String _profileCompletedKey =
       'profile_completed';
@@ -516,6 +523,66 @@ static Future<Map<String, dynamic>>
 }
 
   // =========================
+  // SINCRONIZAR TOKEN FCM
+  // =========================
+
+  static Future<void> syncFcmToken({
+    String? token,
+  }) async {
+    if (!await isLoggedIn()) {
+      return;
+    }
+
+    final fcmToken = token ??
+        await FirebaseMessaging.instance.getToken();
+
+    if (fcmToken == null || fcmToken.isEmpty) {
+      debugPrint('FCM TOKEN: no disponible');
+      return;
+    }
+
+    final device = await _getDeviceData();
+
+    final response = await ApiService.post(
+      '/devices/register',
+      requiresAuth: true,
+      body: {
+        'device_id': device['device_id'],
+        'fcm_token': fcmToken,
+        'platform': device['platform'],
+        'device_name': device['device_name'],
+      },
+    );
+
+    if (response.statusCode != 200) {
+      String message = 'No se pudo registrar el dispositivo';
+
+      try {
+        final data = jsonDecode(response.body);
+        if (data is Map && data['detail'] != null) {
+          message = data['detail'].toString();
+        }
+      } catch (_) {}
+
+      throw Exception(message);
+    }
+
+    debugPrint('==============================');
+    debugPrint('FCM TOKEN REGISTRADO EN BACKEND');
+    debugPrint(fcmToken);
+    debugPrint('==============================');
+  }
+
+  static Future<void> _syncFcmAfterLogin() async {
+    try {
+      await syncFcmToken();
+    } catch (error) {
+      // El login no debe fallar si FCM está temporalmente caído.
+      debugPrint('Error registrando FCM después del login: $error');
+    }
+  }
+
+  // =========================
   // LOGIN GOOGLE
   // =========================
 
@@ -584,6 +651,7 @@ static Future<Map<String, dynamic>>
         data,
       );
 
+      await _syncFcmAfterLogin();
 
       return data;
     } catch (error) {
@@ -649,6 +717,7 @@ static Future<Map<String, dynamic>>
       data,
     );
 
+    await _syncFcmAfterLogin();
 
     return data;
   }
@@ -941,6 +1010,16 @@ static Future<Map<String, dynamic>>
       );
     }
 
+
+    final tenantId = int.tryParse(user['tenant_id']?.toString() ?? '');
+    if (tenantId == null) {
+      await prefs.remove(_tenantIdKey);
+    } else {
+      await prefs.setInt(_tenantIdKey, tenantId);
+    }
+    await prefs.setString(_tenantSlugKey, user['tenant_slug']?.toString() ?? '');
+    await prefs.setString(_tenantNameKey, user['tenant_name']?.toString() ?? '');
+    await prefs.setString(_userIdKey, user['id']?.toString() ?? '');
 
     await prefs.setBool(
       _profileCompletedKey,
@@ -1266,6 +1345,12 @@ static Future<Map<String, dynamic>>
     await prefs.remove(
       _profileCompletedKey,
     );
+    await prefs.remove(_tenantIdKey);
+    await prefs.remove(_tenantSlugKey);
+    await prefs.remove(_tenantNameKey);
+    await prefs.remove(_userIdKey);
+    // Nunca conservar una sucursal de otra sesión.
+    await SelectedBranchService.clearBranch();
   }
 
 
